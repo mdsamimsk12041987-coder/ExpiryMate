@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ExpiryMate</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--tx:#1b1f2a;--mu:#6b7280;--pr:#2f5bd8;--ok:#1a9e3f;--wn:#f5b700;--er:#e0243b;--bd:#e3e7ef;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#12151c;--card:#1c212c;--tx:#eef1f7;--mu:#9aa3b5;--bd:#2c3342;--pr:#3d63d6}}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{background:var(--pr);color:#fff;padding:14px 16px;font-size:20px;font-weight:700;position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+.tabs{display:none;gap:8px;padding:12px 12px 4px}.tabs button{flex:1;padding:9px;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:8px;font-weight:600}
+.tabs button.on{background:var(--pr);color:#fff;border-color:var(--pr)}
+.list{padding:8px 12px 100px}.item{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px;margin-bottom:10px}
+.ph{width:52px;height:52px;border-radius:8px;background:var(--bd);object-fit:cover;display:flex;align-items:center;justify-content:center;font-size:26px;flex:none}
+.info{flex:1;min-width:0}.info b{display:block}.info small{color:var(--mu)}
+.badge{padding:5px 10px;border-radius:14px;font-weight:700;font-size:13px;color:#fff;white-space:nowrap}.safe{background:var(--ok)}.soon{background:var(--wn);color:#222}.exp{background:var(--er)}
+.fab{display:none;position:fixed;right:18px;bottom:calc(20px + env(safe-area-inset-bottom,0px));width:58px;height:58px;border-radius:50%;background:var(--pr);color:#fff;font-size:32px;border:0;box-shadow:0 4px 12px #0004}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-top:6px}
+.card{color:#fff;border-radius:14px;padding:16px;min-height:120px;cursor:pointer}.card b{display:block;font-size:17px;margin-top:6px}.card small{opacity:.9}
+.empty{text-align:center;color:var(--mu);padding:50px 20px}
+.modal{position:fixed;inset:0;background:#0007;display:none;align-items:flex-end;z-index:20}.modal.show{display:flex}
+.sheet{background:var(--card);width:100%;max-height:92%;overflow:auto;border-radius:18px 18px 0 0;padding:18px}
+label{display:block;margin:12px 0 4px;font-size:14px;color:var(--mu)}
+input,select{width:100%;padding:12px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font-size:16px}
+.btn{width:100%;padding:13px;border:0;border-radius:8px;color:#fff;font-weight:700;font-size:16px;margin-top:10px}
+.g{background:var(--ok)}.r{background:var(--er)}.n{background:var(--mu)}
+.big{width:100%;max-height:200px;object-fit:contain;border-radius:8px;margin-bottom:8px}
+.note{display:flex;gap:10px;padding:12px;border-bottom:1px solid var(--bd)}
+</style><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#2f5bd8"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+</head><body>
+<header id="hd"></header>
+<div class="tabs" id="tabs"><button data-f="all"></button><button data-f="soon"></button><button data-f="exp"></button></div>
+<div class="list" id="list"></div>
+<button class="fab" id="add" aria-label="Add">+</button>
+<div class="modal" id="m"><div class="sheet" id="sheet"></div></div>
+<script>
+var KEY="expirymate_v1",items=[],filter="all",cur=null,DAY=864e5,photoData="";
+var S={
+expiry:{t:"Expiry Tracker",i:"🛒",c:"#1a9e3f",dl:"Expiry Date",xl:"Category",xo:["Dairy","Snacks","Beverages","Medicine","Cosmetics","Grocery","Other"]},
+warranty:{t:"Warranty",i:"🛡️",c:"#7a3fd1",dl:"Warranty End Date",xl:"Shop / Brand"},
+ret:{t:"Return Deadline",i:"📦",c:"#e0243b",dl:"Return Deadline",xl:"Shop / Order No."},
+sub:{t:"Subscriptions",i:"📅",c:"#f08a00",dl:"Next Renewal Date",xl:"Amount / Plan"},
+docs:{t:"Documents",i:"📄",c:"#0aa5c0",dl:"Expiry / Renewal Date",xl:"Type",xo:["Passport","ID Card","Driving License","Insurance","Other"]}};
+function load(){try{items=JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){items=[]}
+ items.forEach(function(i){if(!i.sec)i.sec="expiry";if(i.x===undefined)i.x=i.cat||""})}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(items))}catch(e){}}
+function days(d){var t=new Date();t.setHours(0,0,0,0);return Math.round((new Date(d+"T00:00:00")-t)/DAY)}
+function st(i){var d=days(i.exp);return d<0?["exp","Expired",d]:d<=30?["soon",d+" days",d]:["safe","Safe",d]}
+function fmt(d){return new Date(d+"T00:00:00").toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function byDate(a,b){return a.exp<b.exp?-1:1}
+function render(){
+ document.getElementById("hd").innerHTML=(cur?'<span id="back" style="cursor:pointer;margin-right:10px">←</span>'+S[cur].i+" "+S[cur].t:"🛒 ExpiryMate")+'<span id="bell" style="float:right;cursor:pointer">🔔</span>';
+ var tabs=document.getElementById("tabs"),fab=document.getElementById("add"),L=document.getElementById("list");
+ tabs.style.display=fab.style.display=cur?(tabs.style.display="flex","block"):"none";
+ if(!cur){
+  L.innerHTML='<div class="grid">'+Object.keys(S).map(function(k){
+   var a=items.filter(function(i){return i.sec==k}),n=a.filter(function(i){return days(i.exp)<=30}).length;
+   return '<div class="card" data-k="'+k+'" style="background:'+S[k].c+'"><div style="font-size:30px">'+S[k].i+'</div><b>'+S[k].t+'</b><small>'+a.length+" items"+(n?" · ⚠️ "+n+" alert":"")+'</small></div>'}).join("")+'</div>';
+  return}
+ var all=items.filter(function(i){return i.sec==cur}).sort(byDate);
+ var ex=all.filter(function(i){return days(i.exp)<0}),so=all.filter(function(i){var d=days(i.exp);return d>=0&&d<=30});
+ var tb=tabs.querySelectorAll("button");
+ tb[0].textContent="All ("+all.length+")";tb[1].textContent="Expiring ("+so.length+")";tb[2].textContent="Expired ("+ex.length+")";
+ tb.forEach(function(b){b.classList.toggle("on",b.dataset.f==filter)});
+ var show=filter=="all"?all:filter=="soon"?so:ex;
+ L.innerHTML=show.map(function(i){var s=st(i);
+  return '<div class="item" data-id="'+i.id+'">'+(i.photo?'<img class="ph" src="'+i.photo+'">':'<div class="ph">'+S[cur].i+'</div>')+
+  '<div class="info"><b>'+esc(i.name)+'</b><small>'+(i.x?esc(i.x)+" · ":"")+fmt(i.exp)+'</small></div><span class="badge '+s[0]+'">'+s[1]+'</span></div>'}).join("")||'<div class="empty">কোনো item নেই।<br>নিচের + চাপো।</div>';
+}
+function open(h){document.getElementById("sheet").innerHTML=h;document.getElementById("m").classList.add("show")}
+function close(){document.getElementById("m").classList.remove("show")}
+function form(it){
+ var c=S[cur];photoData=it&&it.photo||"";
+ var xf=c.xo?'<select id="f_x">'+c.xo.map(function(o){return"<option"+(it&&it.x==o?" selected":"")+">"+o+"</option>"}).join("")+"</select>":'<input id="f_x" value="'+(it?esc(it.x||""):"")+'">';
+ open('<h3>'+(it?"Edit":"Add")+" "+c.t+'</h3><label>Name</label><input id="f_n" value="'+(it?esc(it.name):"")+'">'+
+ '<label>'+c.dl+'</label><input id="f_d" type="date" value="'+(it?it.exp:"")+'"><label>'+c.xl+'</label>'+xf+
+ '<label>Photo (optional)</label><input id="f_p" type="file" accept="image/*"><img id="pv" class="big" style="margin-top:8px;'+(photoData?"":"display:none")+'" src="'+photoData+'">'+
+ '<button class="btn g" id="f_s">Save</button><button class="btn n" id="f_c">Cancel</button>');
+ document.getElementById("f_c").onclick=close;
+ document.getElementById("f_p").onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();
+  r.onload=function(){var im=new Image();im.onload=function(){var cv=document.createElement("canvas"),k=Math.min(1,400/Math.max(im.width,im.height));cv.width=im.width*k;cv.height=im.height*k;cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);photoData=cv.toDataURL("image/jpeg",.7);var p=document.getElementById("pv");p.src=photoData;p.style.display="block"};im.src=r.result};r.readAsDataURL(f)};
+ document.getElementById("f_s").onclick=function(){
+  var n=document.getElementById("f_n").value.trim(),d=document.getElementById("f_d").value;
+  if(!n||!d){alert("Name আর Date দুটোই দাও।");return}
+  var o={name:n,exp:d,x:document.getElementById("f_x").value.trim(),photo:photoData};
+  if(it)Object.assign(it,o);else{o.id=Date.now()+"";o.sec=cur;o.added=new Date().toISOString().slice(0,10);items.push(o)}
+  save();close();render()};
+}
+function details(id){
+ var i=items.find(function(x){return x.id==id});if(!i)return;var s=st(i),c=S[i.sec];
+ open((i.photo?'<img class="big" src="'+i.photo+'">':"")+"<h3>"+esc(i.name)+'</h3><p style="color:var(--mu)">'+c.xl+": "+esc(i.x||"-")+"<br>Added On: "+fmt(i.added||i.exp)+"</p>"+
+ "<p><b>"+c.dl+": "+fmt(i.exp)+'</b> <span class="badge '+s[0]+'">'+(s[2]<0?"Expired":s[2]+" days left")+"</span></p>"+
+ '<button class="btn g" id="d_e">Edit / Update Date</button><button class="btn r" id="d_d">Delete</button><button class="btn n" id="d_x">Close</button>');
+ document.getElementById("d_x").onclick=close;
+ document.getElementById("d_e").onclick=function(){form(i)};
+ document.getElementById("d_d").onclick=function(){if(confirm("Delete করবে?")){items=items.filter(function(x){return x.id!=id});save();close();render()}};
+}
+function notes(){
+ var a=items.filter(function(i){return days(i.exp)<=30}).sort(byDate);
+ open("<h3>Notifications</h3>"+(a.map(function(i){var d=days(i.exp);
+  return '<div class="note"><span style="font-size:24px">'+(d<0?"🚨":"🔔")+"</span><div><b>"+(d<0?"Expired / Overdue!":d==0?"Today!":"In "+d+" days")+"</b><br>"+esc(i.name)+"<br><small>"+S[i.sec].t+" · "+fmt(i.exp)+"</small></div></div>"}).join("")||'<p class="empty">কোনো alert নেই ✅</p>')+'<button class="btn n" id="n_x">Close</button>');
+ document.getElementById("n_x").onclick=close;
+}
+document.getElementById("hd").onclick=function(e){if(e.target.id=="back"){cur=null;filter="all";render()}else if(e.target.id=="bell")notes()};
+document.getElementById("add").onclick=function(){form(null)};
+document.getElementById("m").onclick=function(e){if(e.target.id=="m")close()};
+document.getElementById("tabs").onclick=function(e){if(e.target.dataset.f){filter=e.target.dataset.f;render()}};
+document.getElementById("list").onclick=function(e){var k=e.target.closest(".card"),c=e.target.closest(".item");
+ if(k){cur=k.dataset.k;filter="all";render()}else if(c)details(c.dataset.id)};
+load();render();
+</script><script>if("serviceWorker" in navigator){window.addEventListener("load",function(){try{navigator.serviceWorker.register("sw.js")}catch(e){}})}</script>
+</body></html>
