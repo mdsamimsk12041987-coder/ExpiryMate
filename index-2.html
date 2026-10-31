@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2a4bc0">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>ExpiryMate</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--tx:#1b2233;--mut:#6b7488;--pri:#2a4bc0;--bd:#dfe4ee}
+body.dark{--bg:#10141f;--card:#1a2030;--tx:#eef1f8;--mut:#9aa4ba;--bd:#2b3347}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:Roboto,system-ui,sans-serif;background:var(--bg);color:var(--tx);padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+header{position:sticky;top:0;z-index:5;background:var(--pri);color:#fff;display:flex;align-items:center;gap:8px;height:56px;padding:0 8px}
+header h1{font-size:19px;font-weight:500;margin:0;flex:1}
+header button{background:none;border:0;color:#fff;font-size:22px;width:44px;height:44px;border-radius:50%}
+main{max-width:640px;margin:0 auto;padding:14px;animation:in .2s}
+@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.logo{text-align:center;padding:6px 0 14px}.logo b{font-size:30px;color:var(--pri)}.logo small{display:block;color:var(--mut)}
+.tile{display:flex;align-items:center;gap:14px;width:100%;border:0;border-radius:6px;color:#fff;font-size:18px;font-weight:500;padding:0 16px;height:58px;margin-bottom:10px;text-align:start}
+.tile span:first-child{font-size:24px;width:30px}.tile em{margin-inline-start:auto;font-style:normal;background:rgba(255,255,255,.25);border-radius:14px;padding:2px 12px;font-size:15px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:10px}
+.item{display:flex;gap:12px;align-items:center;cursor:pointer}
+.th{width:64px;height:64px;border-radius:8px;background:var(--bd);object-fit:cover;flex:none;display:flex;align-items:center;justify-content:center;font-size:26px}
+.item div.m{flex:1;min-width:0}.item b{display:block}.item small{color:var(--mut)}
+.badge{border-radius:14px;padding:5px 12px;font-weight:600;font-size:14px;white-space:nowrap;color:#fff}
+.safe{background:#1fa347}.soon{background:#ffcc1a;color:#222}.expired{background:#e0203a}.none{background:#8a93a6}
+.chips{display:flex;gap:8px;overflow-x:auto;margin-bottom:10px}
+.chip{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:8px;padding:8px 14px;white-space:nowrap;font-size:15px}.chip.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+label{display:block;margin:12px 0 4px;font-weight:500}
+input,select,textarea{width:100%;font:inherit;padding:12px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--tx)}
+.btn{display:block;width:100%;border:0;border-radius:6px;color:#fff;font-size:17px;font-weight:500;font-family:inherit;padding:14px;margin-top:10px;background:var(--pri)}
+.g{background:#1fa347}.r{background:#e0203a}.p{background:#5b34c9}.gr{background:#6b7488}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.fab{position:fixed;inset-inline-end:18px;bottom:calc(18px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;border:0;background:var(--pri);color:#fff;font-size:30px;box-shadow:0 3px 10px #0005}
+.empty{text-align:center;color:var(--mut);padding:40px 10px}
+.pv{width:100%;max-height:220px;object-fit:contain;border-radius:8px;background:var(--bd);margin-top:6px}
+video{width:100%;border-radius:8px;background:#000;max-height:60vh}
+.kv{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd)}.kv span:first-child{color:var(--mut)}
+.err{color:#e0203a;font-size:14px;margin-top:4px}.note{color:var(--mut);font-size:14px;line-height:1.5}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 18px;border-radius:20px;opacity:0;transition:.3s;pointer-events:none;z-index:20;max-width:90%}
+#toast.s{opacity:1}
+#modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:15;padding:20px}#modal.s{display:flex}#modal>div{background:var(--card);border-radius:12px;padding:16px;width:100%;max-width:380px}
+</style>
+</head>
+<body>
+<div id="top"></div><main id="app"></main><div id="toast"></div><div id="modal"><div id="mbox"></div></div>
+<script>
+'use strict';
+/* ---------- config ---------- */
+const DEFCATS=['Dairy','Fruits & Vegetables','Packaged Food','Beverages','Medicines','Personal Care','Cosmetics','Household','Baby Products','Electronics','Other'];
+const T={
+ products:{t:'Expiry Tracker',one:'Product',s:'products',date:'expiry',soon:30,over:'Expired',ico:'☰',col:'#6b7488',pl:'Product Photo',
+  f:[['name','Product Name','text',1],['barcode','Barcode','text'],['category','Category','select',0,[]],['mfg','Manufacturing Date','date'],['expiry','Expiry Date','date',1],['qty','Quantity','number'],['unit','Unit','select',0,['pcs','g','kg','ml','L','pack','box']],['notes','Notes','area']]},
+ warranty:{t:'Warranty',one:'Warranty',s:'warranty',date:'expiry',soon:30,over:'Expired',ico:'🛡',col:'#6b3fd1',pl:'Invoice Photo',
+  f:[['name','Product Name','text',1],['brand','Brand','text'],['purchase','Purchase Date','date'],['expiry','Warranty Expiry Date','date',1],['price','Purchase Price','number'],['notes','Notes','area']]},
+ returns:{t:'Return Deadline',one:'Return',s:'returns',date:'deadline',soon:7,over:'Overdue',ico:'📦',col:'#e0203a',pl:'Invoice Photo',
+  f:[['name','Product Name','text',1],['purchase','Purchase Date','date'],['deadline','Return Deadline','date',1],['seller','Seller','text'],['order','Order ID','text'],['notes','Notes','area']]},
+ subs:{t:'Subscriptions',one:'Subscription',s:'subs',date:'renewal',soon:7,over:'Overdue',ico:'📅',col:'#ff9800',
+  f:[['name','Subscription Name','text',1],['provider','Provider','text'],['start','Start Date','date'],['renewal','Renewal Date','date',1],['amount','Amount','number'],['cycle','Billing Cycle','select',0,['Monthly','Quarterly','Yearly']],['notes','Notes','area']]},
+ docs:{t:'Documents',one:'Document',s:'docs',date:'expiry',soon:30,over:'Expired',ico:'📄',col:'#0aa5b8',pl:'Document Image',
+  f:[['name','Document Title','text',1],['category','Category','select',0,['ID','Passport','License','Insurance','Medical','Education','Finance','Other']],['expiry','Expiry Date (optional)','date'],['notes','Notes','area']]}
+};
+const THRESH=[30,7,3,1,0];
+/* ---------- i18n ---------- */
+let LANG='en',RTL=false;
+const LANGS=[['en','English'],['bn','বাংলা'],['hi','हिन्दी'],['ar','العربية'],['es','Español']];
+const LOC={en:'en',bn:'bn',hi:'hi',ar:'ar-u-ca-gregory-nu-latn',es:'es'},LIDX={bn:0,hi:1,ar:2,es:3};
+/* key = English text; value = [Bengali, Hindi, Arabic, Spanish]; missing key falls back to English */
+const D={
+'Scan Barcode':['বারকোড স্ক্যান','बारकोड स्कैन करें','مسح الباركود','Escanear código de barras'],
+'Scan with Camera':['ক্যামেরা দিয়ে স্ক্যান','कैमरे से स्कैन करें','المسح بالكاميرا','Escanear con la cámara'],
+'Expiry Tracker':['মেয়াদ ট্র্যাকার','एक्सपायरी ट्रैकर','متتبع الصلاحية','Control de caducidad'],
+'Warranty':['ওয়ারেন্টি','वारंटी','الضمان','Garantía'],
+'Return Deadline':['ফেরতের শেষ তারিখ','वापसी की अंतिम तिथि','موعد الإرجاع','Plazo de devolución'],
+'Subscriptions':['সাবস্ক্রিপশন','सदस्यताएँ','الاشتراكات','Suscripciones'],
+'Documents':['ডকুমেন্ট','दस्तावेज़','المستندات','Documentos'],
+'Categories':['ক্যাটাগরি','श्रेणियाँ','الفئات','Categorías'],
+'Track • Scan • Capture • Get Reminders':['ট্র্যাক • স্ক্যান • ছবি তুলুন • রিমাইন্ডার পান','ट्रैक • स्कैन • कैप्चर • रिमाइंडर पाएँ','تتبّع • امسح • التقط • احصل على تذكيرات','Controla • Escanea • Captura • Recibe avisos'],
+'Notifications':['বিজ্ঞপ্তি','सूचनाएँ','الإشعارات','Notificaciones'],
+'Settings':['সেটিংস','सेटिंग्स','الإعدادات','Ajustes'],
+'Back':['পিছনে','वापस','رجوع','Atrás'],
+'Product':['পণ্য','उत्पाद','المنتج','Producto'],
+'Return':['ফেরত','वापसी','الإرجاع','Devolución'],
+'Subscription':['সাবস্ক্রিপশন','सदस्यता','الاشتراك','Suscripción'],
+'Document':['ডকুমেন্ট','दस्तावेज़','المستند','Documento'],
+'Product Photo':['পণ্যের ছবি','उत्पाद की फ़ोटो','صورة المنتج','Foto del producto'],
+'Invoice Photo':['ইনভয়েসের ছবি','बिल की फ़ोटो','صورة الفاتورة','Foto de la factura'],
+'Document Image':['ডকুমেন্টের ছবি','दस्तावेज़ की छवि','صورة المستند','Imagen del documento'],
+'Product Name':['পণ্যের নাম','उत्पाद का नाम','اسم المنتج','Nombre del producto'],
+'Barcode':['বারকোড','बारकोड','الباركود','Código de barras'],
+'Category':['ক্যাটাগরি','श्रेणी','الفئة','Categoría'],
+'Manufacturing Date':['উৎপাদনের তারিখ','निर्माण तिथि','تاريخ الإنتاج','Fecha de fabricación'],
+'Expiry Date':['মেয়াদ শেষের তারিখ','समाप्ति तिथि','تاريخ الانتهاء','Fecha de caducidad'],
+'Quantity':['পরিমাণ','मात्रा','الكمية','Cantidad'],
+'Unit':['একক','इकाई','الوحدة','Unidad'],
+'Notes':['নোট','टिप्पणियाँ','ملاحظات','Notas'],
+'Brand':['ব্র্যান্ড','ब्रांड','العلامة التجارية','Marca'],
+'Purchase Date':['কেনার তারিখ','खरीद की तिथि','تاريخ الشراء','Fecha de compra'],
+'Warranty Expiry Date':['ওয়ারেন্টি শেষের তারিখ','वारंटी समाप्ति तिथि','تاريخ انتهاء الضمان','Fin de la garantía'],
+'Purchase Price':['কেনার দাম','खरीद मूल्य','سعر الشراء','Precio de compra'],
+'Seller':['বিক্রেতা','विक्रेता','البائع','Vendedor'],
+'Order ID':['অর্ডার আইডি','ऑर्डर आईडी','رقم الطلب','ID del pedido'],
+'Subscription Name':['সাবস্ক্রিপশনের নাম','सदस्यता का नाम','اسم الاشتراك','Nombre de la suscripción'],
+'Provider':['প্রদানকারী','प्रदाता','المزوّد','Proveedor'],
+'Start Date':['শুরুর তারিখ','प्रारंभ तिथि','تاريخ البدء','Fecha de inicio'],
+'Renewal Date':['নবায়নের তারিখ','नवीनीकरण तिथि','تاريخ التجديد','Fecha de renovación'],
+'Amount':['মূল্য','राशि','المبلغ','Importe'],
+'Billing Cycle':['বিলিং চক্র','बिलिंग चक्र','دورة الفوترة','Ciclo de facturación'],
+'Document Title':['ডকুমেন্টের শিরোনাম','दस्तावेज़ का शीर्षक','عنوان المستند','Título del documento'],
+'Expiry Date (optional)':['মেয়াদ শেষের তারিখ (ঐচ্ছিক)','समाप्ति तिथि (वैकल्पिक)','تاريخ الانتهاء (اختياري)','Fecha de caducidad (opcional)'],
+'optional':['ঐচ্ছিক','वैकल्पिक','اختياري','opcional'],
+'Expired':['মেয়াদোত্তীর্ণ','समाप्त','منتهي','Caducado'],
+'Overdue':['মেয়াদ পার','अतिदेय','متأخر','Vencido'],
+'pcs':['টি','पीस','قطعة','uds'],'pack':['প্যাকেট','पैक','عبوة','paquete'],'box':['বাক্স','डिब्बा','علبة','caja'],
+'Monthly':['মাসিক','मासिक','شهري','Mensual'],'Quarterly':['ত্রৈমাসিক','त्रैमासिक','ربع سنوي','Trimestral'],'Yearly':['বার্ষিক','वार्षिक','سنوي','Anual'],
+'ID':['পরিচয়পত্র','पहचान पत्र','هوية','Identificación'],'Passport':['পাসপোর্ট','पासपोर्ट','جواز سفر','Pasaporte'],'License':['লাইসেন্স','लाइसेंस','رخصة','Licencia'],
+'Insurance':['বিমা','बीमा','تأمين','Seguro'],'Medical':['চিকিৎসা','चिकित्सा','طبي','Médico'],'Education':['শিক্ষা','शिक्षा','تعليم','Educación'],'Finance':['অর্থ','वित्त','مالية','Finanzas'],
+'Other':['অন্যান্য','अन्य','أخرى','Otro'],
+'Dairy':['দুগ্ধজাত','डेयरी','ألبان','Lácteos'],
+'Fruits & Vegetables':['ফল ও সবজি','फल और सब्ज़ियाँ','فواكه وخضروات','Frutas y verduras'],
+'Packaged Food':['প্যাকেটজাত খাবার','पैकेज्ड भोजन','أغذية معلّبة','Alimentos envasados'],
+'Beverages':['পানীয়','पेय पदार्थ','مشروبات','Bebidas'],
+'Medicines':['ওষুধ','दवाइयाँ','أدوية','Medicamentos'],
+'Personal Care':['ব্যক্তিগত যত্ন','व्यक्तिगत देखभाल','العناية الشخصية','Cuidado personal'],
+'Cosmetics':['প্রসাধনী','सौंदर्य प्रसाधन','مستحضرات التجميل','Cosméticos'],
+'Household':['গৃহস্থালি','घरेलू सामान','مستلزمات منزلية','Hogar'],
+'Baby Products':['শিশুদের পণ্য','बच्चों के उत्पाद','منتجات الأطفال','Productos para bebé'],
+'Electronics':['ইলেকট্রনিক্স','इलेक्ट्रॉनिक्स','إلكترونيات','Electrónica'],
+'No date':['তারিখ নেই','तिथि नहीं','لا تاريخ','Sin fecha'],
+'No date set':['কোনো তারিখ দেওয়া নেই','कोई तिथि सेट नहीं','لم يُحدَّد تاريخ','Sin fecha establecida'],
+'Today':['আজ','आज','اليوم','Hoy'],'Safe':['নিরাপদ','सुरक्षित','آمن','Seguro'],
+'Due today':['আজই শেষ','आज अंतिम दिन','مستحق اليوم','Vence hoy'],
+'1 day':['১ দিন','1 दिन','يوم واحد','1 día'],'{0} days':['{0} দিন','{0} दिन','{0} أيام','{0} días'],
+'1 day left':['১ দিন বাকি','1 दिन बाकी','باقٍ يوم واحد','Queda 1 día'],'{0} days left':['{0} দিন বাকি','{0} दिन बाकी','باقٍ {0} أيام','Quedan {0} días'],
+'1 day ago':['১ দিন আগে','1 दिन पहले','قبل يوم واحد','hace 1 día'],'{0} days ago':['{0} দিন আগে','{0} दिन पहले','قبل {0} أيام','hace {0} días'],
+'Search…':['খুঁজুন…','खोजें…','بحث…','Buscar…'],'All':['সব','सभी','الكل','Todos'],
+'Expiring Soon':['শীঘ্রই মেয়াদ শেষ','जल्द समाप्त','ينتهي قريبًا','Por caducar'],
+'All categories':['সব ক্যাটাগরি','सभी श्रेणियाँ','كل الفئات','Todas las categorías'],
+'No matching items.':['কোনো মিল পাওয়া যায়নি।','कोई मेल खाता आइटम नहीं।','لا توجد عناصر مطابقة.','No hay elementos coincidentes.'],
+'Nothing here yet. Tap ＋ to add your first {0}.':['এখানে এখনও কিছু নেই। প্রথম {0} যোগ করতে ＋ চাপুন।','यहाँ अभी कुछ नहीं है। पहला {0} जोड़ने के लिए ＋ दबाएँ।','لا شيء هنا بعد. اضغط ＋ لإضافة أول {0}.','Aún no hay nada. Toca ＋ para añadir tu primer elemento ({0}).'],
+'Add':['যোগ করুন','जोड़ें','إضافة','Añadir'],
+'Edit {0}':['{0} সম্পাদনা','{0} संपादित करें','تعديل {0}','Editar {0}'],
+'Add {0}':['{0} যোগ করুন','{0} जोड़ें','إضافة {0}','Añadir {0}'],
+'Save {0}':['{0} সংরক্ষণ করুন','{0} सहेजें','حفظ {0}','Guardar {0}'],
+'Cancel':['বাতিল','रद्द करें','إلغاء','Cancelar'],'Save':['সংরক্ষণ','सहेजें','حفظ','Guardar'],
+'📷 Camera':['📷 ক্যামেরা','📷 कैमरा','📷 الكاميرا','📷 Cámara'],'🖼 Gallery':['🖼 গ্যালারি','🖼 गैलरी','🖼 المعرض','🖼 Galería'],
+'Required':['আবশ্যক','आवश्यक','مطلوب','Obligatorio'],'Invalid date':['তারিখ সঠিক নয়','अमान्य तिथि','تاريخ غير صالح','Fecha no válida'],
+'Enter a valid number':['সঠিক সংখ্যা লিখুন','मान्य संख्या दर्ज करें','أدخل رقمًا صالحًا','Introduce un número válido'],
+'Expiry is before manufacturing date':['মেয়াদ শেষের তারিখ উৎপাদনের আগে','समाप्ति तिथि निर्माण तिथि से पहले है','تاريخ الانتهاء قبل تاريخ الإنتاج','La caducidad es anterior a la fabricación'],
+'Please fix the highlighted fields':['চিহ্নিত ঘরগুলো ঠিক করুন','कृपया चिह्नित फ़ील्ड ठीक करें','يرجى تصحيح الحقول المحددة','Corrige los campos marcados'],
+'A similar product ("{0}") with the same expiry already exists. Save anyway?':['একই মেয়াদের একটি অনুরূপ পণ্য ("{0}") আগে থেকেই আছে। তবুও সংরক্ষণ করবেন?','समान समाप्ति वाला एक मिलता-जुलता उत्पाद ("{0}") पहले से मौजूद है। फिर भी सहेजें?','يوجد منتج مشابه ("{0}") بنفس تاريخ الانتهاء. هل تريد الحفظ على أي حال؟','Ya existe un producto similar ("{0}") con la misma caducidad. ¿Guardar de todos modos?'],
+'Saved':['সংরক্ষিত হয়েছে','सहेजा गया','تم الحفظ','Guardado'],
+'Item not found':['আইটেম পাওয়া যায়নি','आइटम नहीं मिला','العنصر غير موجود','Elemento no encontrado'],
+'Could not read that image':['ছবিটি পড়া যায়নি','वह छवि पढ़ी नहीं जा सकी','تعذّرت قراءة الصورة','No se pudo leer la imagen'],
+'{0} Details':['{0}-এর বিবরণ','{0} का विवरण','تفاصيل {0}','Detalles: {0}'],
+'Edit':['সম্পাদনা','संपादित करें','تعديل','Editar'],'Delete':['মুছুন','हटाएँ','حذف','Eliminar'],
+'Added {0}':['যোগ করা হয়েছে {0}','जोड़ा गया {0}','أُضيف {0}','Añadido {0}'],
+'No more details.':['আর কোনো তথ্য নেই।','और कोई विवरण नहीं।','لا مزيد من التفاصيل.','No hay más detalles.'],
+'Mark Renewed (advance date)':['নবায়ন হয়েছে (তারিখ এগিয়ে দিন)','नवीनीकृत करें (तिथि आगे बढ़ाएँ)','تم التجديد (تقديم التاريخ)','Marcar como renovada (avanzar fecha)'],
+'Update Date':['তারিখ আপডেট করুন','तिथि अपडेट करें','تحديث التاريخ','Actualizar fecha'],
+'📷 Take New Photo':['📷 নতুন ছবি তুলুন','📷 नई फ़ोटो लें','📷 التقاط صورة جديدة','📷 Tomar foto nueva'],
+'View Full Image':['পুরো ছবি দেখুন','पूरी छवि देखें','عرض الصورة كاملة','Ver imagen completa'],
+'Close':['বন্ধ করুন','बंद करें','إغلاق','Cerrar'],
+'New {0}':['নতুন {0}','नई {0}','{0} جديد','Nuevo: {0}'],
+'Renewal moved to {0}':['নবায়ন সরানো হয়েছে: {0}','नवीनीकरण की तिथि बदलकर {0} की गई','تم نقل التجديد إلى {0}','Renovación movida a {0}'],
+'Enter a valid date':['সঠিক তারিখ দিন','मान्य तिथि दर्ज करें','أدخل تاريخًا صالحًا','Introduce una fecha válida'],
+'Date updated':['তারিখ আপডেট হয়েছে','तिथि अपडेट हुई','تم تحديث التاريخ','Fecha actualizada'],
+'Delete this item permanently?':['এই আইটেমটি স্থায়ীভাবে মুছবেন?','यह आइटम स्थायी रूप से हटाएँ?','هل تريد حذف هذا العنصر نهائيًا؟','¿Eliminar este elemento de forma permanente?'],
+'Deleted':['মুছে ফেলা হয়েছে','हटा दिया गया','تم الحذف','Eliminado'],
+'Photo updated':['ছবি আপডেট হয়েছে','फ़ोटो अपडेट हुई','تم تحديث الصورة','Foto actualizada'],
+'Starting camera…':['ক্যামেরা চালু হচ্ছে…','कैमरा शुरू हो रहा है…','جارٍ تشغيل الكاميرا…','Iniciando cámara…'],
+'Live barcode detection is not supported in this browser (works in recent Android Chrome). Enter the barcode manually below.':['এই ব্রাউজারে লাইভ বারকোড শনাক্তকরণ সমর্থিত নয় (নতুন Android Chrome-এ কাজ করে)। নিচে বারকোড হাতে লিখুন।','इस ब्राउज़र में लाइव बारकोड पहचान समर्थित नहीं है (नए Android Chrome में काम करती है)। नीचे बारकोड हाथ से दर्ज करें।','الكشف المباشر عن الباركود غير مدعوم في هذا المتصفح (يعمل في Android Chrome الحديث). أدخل الباركود يدويًا أدناه.','La detección en vivo no es compatible con este navegador (funciona en Android Chrome reciente). Introduce el código manualmente abajo.'],
+'Enter barcode manually':['বারকোড হাতে লিখুন','बारकोड हाथ से दर्ज करें','أدخل الباركود يدويًا','Introducir código manualmente'],
+'Look Up':['খুঁজুন','खोजें','بحث','Buscar'],
+'Add Product Manually':['হাতে পণ্য যোগ করুন','उत्पाद हाथ से जोड़ें','إضافة منتج يدويًا','Añadir producto manualmente'],
+'Product names come from the free Open Food Facts database (food items only, no guarantee of coverage). If nothing is found, add the product manually.':['পণ্যের নাম বিনামূল্যের Open Food Facts ডাটাবেস থেকে আসে (শুধু খাদ্যপণ্য, সব পণ্যের তথ্য নিশ্চিত নয়)। কিছু না পেলে হাতে যোগ করুন।','उत्पाद के नाम मुफ़्त Open Food Facts डेटाबेस से आते हैं (केवल खाद्य पदार्थ, सभी की गारंटी नहीं)। कुछ न मिले तो हाथ से जोड़ें।','تأتي أسماء المنتجات من قاعدة بيانات Open Food Facts المجانية (المواد الغذائية فقط ودون ضمان للتغطية). إن لم يُعثر على شيء فأضف المنتج يدويًا.','Los nombres vienen de la base gratuita Open Food Facts (solo alimentos, sin garantía de cobertura). Si no aparece, añade el producto manualmente.'],
+'Enter 6–14 digits':['৬–১৪ সংখ্যা লিখুন','6–14 अंक दर्ज करें','أدخل من 6 إلى 14 رقمًا','Introduce de 6 a 14 dígitos'],
+'Point the camera at a barcode.':['ক্যামেরা বারকোডের দিকে ধরুন।','कैमरा बारकोड की ओर करें।','وجّه الكاميرا نحو الباركود.','Apunta la cámara al código de barras.'],
+'Camera permission denied. Allow camera in browser settings, or enter the barcode manually.':['ক্যামেরার অনুমতি দেওয়া হয়নি। ব্রাউজার সেটিংসে অনুমতি দিন, অথবা বারকোড হাতে লিখুন।','कैमरे की अनुमति नहीं मिली। ब्राउज़र सेटिंग्स में अनुमति दें, या बारकोड हाथ से दर्ज करें।','تم رفض إذن الكاميرا. اسمح بها من إعدادات المتصفح أو أدخل الباركود يدويًا.','Permiso de cámara denegado. Actívalo en los ajustes del navegador o introduce el código manualmente.'],
+'Camera unavailable: {0}':['ক্যামেরা পাওয়া যাচ্ছে না: {0}','कैमरा उपलब्ध नहीं: {0}','الكاميرا غير متاحة: {0}','Cámara no disponible: {0}'],
+'Barcode Detected':['বারকোড শনাক্ত হয়েছে','बारकोड मिल गया','تم اكتشاف الباركود','Código detectado'],
+'Looking up product…':['পণ্য খোঁজা হচ্ছে…','उत्पाद खोजा जा रहा है…','جارٍ البحث عن المنتج…','Buscando producto…'],
+'Product not found online. You can enter details manually.':['অনলাইনে পণ্য পাওয়া যায়নি। হাতে তথ্য লিখতে পারেন।','उत्पाद ऑनलाइन नहीं मिला। आप विवरण हाथ से दर्ज कर सकते हैं।','لم يُعثر على المنتج عبر الإنترنت. يمكنك إدخال التفاصيل يدويًا.','Producto no encontrado en línea. Puedes introducir los datos manualmente.'],
+'Use This Product':['এই পণ্যটি ব্যবহার করুন','यह उत्पाद उपयोग करें','استخدام هذا المنتج','Usar este producto'],
+'Enter Product Details':['পণ্যের তথ্য লিখুন','उत्पाद विवरण दर्ज करें','أدخل تفاصيل المنتج','Introducir datos del producto'],
+'Pack size: {0}':['প্যাকের আকার: {0}','पैक का आकार: {0}','حجم العبوة: {0}','Tamaño del envase: {0}'],
+'Take a clear, well-lit photo of the printed MFG / EXP dates. Dates are read as DD/MM/YYYY — please always check them.':['ছাপা MFG / EXP তারিখের একটি পরিষ্কার, আলোকিত ছবি তুলুন। তারিখ DD/MM/YYYY হিসেবে পড়া হয় — সবসময় যাচাই করে নিন।','छपी MFG / EXP तिथियों की साफ़, रोशनी वाली फ़ोटो लें। तिथियाँ DD/MM/YYYY के रूप में पढ़ी जाती हैं — हमेशा जाँच लें।','التقط صورة واضحة وجيدة الإضاءة لتواريخ MFG / EXP المطبوعة. تُقرأ التواريخ بصيغة DD/MM/YYYY — تحقّق منها دائمًا.','Toma una foto nítida y bien iluminada de las fechas MFG / EXP impresas. Se leen como DD/MM/AAAA — compruébalas siempre.'],
+'Loading text reader…':['টেক্সট রিডার লোড হচ্ছে…','टेक्स्ट रीडर लोड हो रहा है…','جارٍ تحميل قارئ النص…','Cargando lector de texto…'],
+'Reading text… {0}%':['টেক্সট পড়া হচ্ছে… {0}%','टेक्स्ट पढ़ा जा रहा है… {0}%','جارٍ قراءة النص… {0}%','Leyendo texto… {0}%'],
+'Detected dates — please confirm':['শনাক্ত তারিখ — অনুগ্রহ করে নিশ্চিত করুন','पहचानी गई तिथियाँ — कृपया पुष्टि करें','التواريخ المكتشفة — يرجى التأكيد','Fechas detectadas — confirma por favor'],
+'No date detected':['কোনো তারিখ পাওয়া যায়নি','कोई तिथि नहीं मिली','لم يتم اكتشاف تاريخ','No se detectó ninguna fecha'],
+'Enter the dates manually below.':['নিচে হাতে তারিখ লিখুন।','नीचे तिथियाँ हाथ से दर्ज करें।','أدخل التواريخ يدويًا أدناه.','Introduce las fechas manualmente abajo.'],
+'Enter at least one valid date':['অন্তত একটি সঠিক তারিখ দিন','कम से कम एक मान्य तिथि दर्ज करें','أدخل تاريخًا صالحًا واحدًا على الأقل','Introduce al menos una fecha válida'],
+'Use This Date':['এই তারিখ ব্যবহার করুন','यह तिथि उपयोग करें','استخدام هذا التاريخ','Usar esta fecha'],
+'Continue and enter dates manually':['এগিয়ে যান ও হাতে তারিখ লিখুন','आगे बढ़ें और तिथियाँ हाथ से दर्ज करें','متابعة وإدخال التواريخ يدويًا','Continuar e introducir fechas manualmente'],
+'OCR library could not load (internet needed the first time)':['OCR লাইব্রেরি লোড হয়নি (প্রথমবার ইন্টারনেট লাগে)','OCR लाइब्रेरी लोड नहीं हुई (पहली बार इंटरनेट चाहिए)','تعذّر تحميل مكتبة OCR (يلزم الإنترنت أول مرة)','No se pudo cargar la biblioteca OCR (requiere internet la primera vez)'],
+'No alerts. Items due within 30 days or overdue appear here.':['কোনো সতর্কতা নেই। ৩০ দিনের মধ্যে মেয়াদ শেষ বা মেয়াদ পেরোনো আইটেম এখানে দেখাবে।','कोई अलर्ट नहीं। 30 दिनों में समाप्त होने वाले या अतिदेय आइटम यहाँ दिखेंगे।','لا توجد تنبيهات. تظهر هنا العناصر المستحقة خلال 30 يومًا أو المتأخرة.','Sin alertas. Aquí aparecen los elementos que vencen en 30 días o ya vencidos.'],
+'Language':['ভাষা','भाषा','اللغة','Idioma'],'Appearance':['চেহারা','रूप-रंग','المظهر','Apariencia'],'Dark mode':['ডার্ক মোড','डार्क मोड','الوضع الداكن','Modo oscuro'],
+'Reminders':['রিমাইন্ডার','रिमाइंडर','التذكيرات','Recordatorios'],
+'Alerts at 30, 7, 3 and 1 days before, on the day, and when overdue. Permission: {0}.':['৩০, ৭, ৩ ও ১ দিন আগে, নির্ধারিত দিনে এবং মেয়াদ পেরোলে সতর্কতা। অনুমতি: {0}।','समाप्ति से 30, 7, 3 और 1 दिन पहले, उसी दिन और अतिदेय होने पर अलर्ट। अनुमति: {0}।','تنبيهات قبل 30 و7 و3 و1 أيام، وفي اليوم نفسه، وعند التأخر. الإذن: {0}.','Alertas 30, 7, 3 y 1 días antes, el mismo día y al vencer. Permiso: {0}.'],
+'Enable notifications':['বিজ্ঞপ্তি চালু করুন','सूचनाएँ चालू करें','تفعيل الإشعارات','Activar notificaciones'],
+'Allow Notifications':['বিজ্ঞপ্তির অনুমতি দিন','सूचनाओं की अनुमति दें','السماح بالإشعارات','Permitir notificaciones'],
+'Alerts are checked when you open the app. Android browsers may not deliver them while the app is closed; reliable background alerts need a push server. Check the Notifications screen regularly.':['অ্যাপ খুললে সতর্কতা যাচাই করা হয়। অ্যাপ বন্ধ থাকলে Android ব্রাউজার নোটিফিকেশন নাও দিতে পারে; নির্ভরযোগ্য ব্যাকগ্রাউন্ড সতর্কতার জন্য পুশ সার্ভার লাগে। নিয়মিত বিজ্ঞপ্তি স্ক্রিন দেখুন।','ऐप खोलने पर अलर्ट जाँचे जाते हैं। ऐप बंद होने पर Android ब्राउज़र उन्हें न भेजे, ऐसा हो सकता है; भरोसेमंद बैकग्राउंड अलर्ट के लिए पुश सर्वर चाहिए। सूचनाएँ स्क्रीन नियमित देखें।','تُفحص التنبيهات عند فتح التطبيق. قد لا تصل الإشعارات عبر متصفحات أندرويد أثناء إغلاق التطبيق؛ والتنبيهات الخلفية الموثوقة تحتاج إلى خادم دفع. راجع شاشة الإشعارات بانتظام.','Las alertas se comprueban al abrir la app. Los navegadores Android pueden no entregarlas con la app cerrada; las alertas fiables en segundo plano requieren un servidor push. Revisa la pantalla de Notificaciones con frecuencia.'],
+'Manage Categories':['ক্যাটাগরি পরিচালনা','श्रेणियाँ प्रबंधित करें','إدارة الفئات','Gestionar categorías'],
+'Backup & Restore':['ব্যাকআপ ও রিস্টোর','बैकअप और रीस्टोर','النسخ الاحتياطي والاستعادة','Copia de seguridad y restauración'],
+'Export Backup (JSON)':['ব্যাকআপ এক্সপোর্ট (JSON)','बैकअप निर्यात (JSON)','تصدير نسخة احتياطية (JSON)','Exportar copia (JSON)'],
+'Import Backup':['ব্যাকআপ ইমপোর্ট','बैकअप आयात करें','استيراد نسخة احتياطية','Importar copia'],
+'Data':['ডেটা','डेटा','البيانات','Datos'],
+'Your data is stored only in this browser on this device and is not synced. Clearing browser data can erase it — export backups regularly.':['আপনার ডেটা শুধু এই ডিভাইসের এই ব্রাউজারে থাকে, সিঙ্ক হয় না। ব্রাউজার ডেটা মুছলে তা হারাতে পারে — নিয়মিত ব্যাকআপ নিন।','आपका डेटा केवल इस डिवाइस के इस ब्राउज़र में रहता है, सिंक नहीं होता। ब्राउज़र डेटा साफ़ करने से मिट सकता है — नियमित बैकअप लें।','تُحفظ بياناتك في هذا المتصفح على هذا الجهاز فقط ولا تتم مزامنتها. قد يؤدي مسح بيانات المتصفح إلى فقدانها — صدّر نسخًا احتياطية بانتظام.','Tus datos se guardan solo en este navegador de este dispositivo y no se sincronizan. Borrar los datos del navegador puede eliminarlos: exporta copias con regularidad.'],
+'Delete All Data':['সব ডেটা মুছুন','सारा डेटा हटाएँ','حذف كل البيانات','Eliminar todos los datos'],
+'Install App':['অ্যাপ ইনস্টল করুন','ऐप इंस्टॉल करें','تثبيت التطبيق','Instalar app'],
+'granted':['দেওয়া হয়েছে','दी गई','مسموح','concedido'],'denied':['প্রত্যাখ্যাত','अस्वीकृत','مرفوض','denegado'],'default':['জিজ্ঞাসা হয়নি','पूछा नहीं गया','لم يُطلب بعد','sin decidir'],'unsupported':['অসমর্থিত','असमर्थित','غير مدعوم','no compatible'],
+'Products':['পণ্য','उत्पाद','المنتجات','Productos'],
+'Used ≈ {0} MB':['ব্যবহৃত ≈ {0} MB','उपयोग ≈ {0} MB','المستخدم ≈ {0} MB','Usado ≈ {0} MB'],
+'Delete ALL data on this device? This cannot be undone.':['এই ডিভাইসের সব ডেটা মুছবেন? এটি ফেরানো যাবে না।','इस डिवाइस का सारा डेटा हटाएँ? इसे वापस नहीं किया जा सकता।','هل تريد حذف كل البيانات على هذا الجهاز؟ لا يمكن التراجع عن ذلك.','¿Eliminar TODOS los datos de este dispositivo? No se puede deshacer.'],
+'Really delete everything? Export a backup first if unsure.':['সত্যিই সব মুছবেন? নিশ্চিত না হলে আগে ব্যাকআপ নিন।','क्या सच में सब हटाना है? निश्चित न हों तो पहले बैकअप लें।','هل أنت متأكد من حذف كل شيء؟ صدّر نسخة احتياطية أولًا إن لم تكن متأكدًا.','¿Seguro que quieres borrar todo? Exporta una copia antes si tienes dudas.'],
+'All data deleted':['সব ডেটা মুছে ফেলা হয়েছে','सारा डेटा हटा दिया गया','تم حذف كل البيانات','Todos los datos eliminados'],
+'Backup exported':['ব্যাকআপ এক্সপোর্ট হয়েছে','बैकअप निर्यात हुआ','تم تصدير النسخة الاحتياطية','Copia exportada'],
+'Backup restored':['ব্যাকআপ রিস্টোর হয়েছে','बैकअप रीस्टोर हुआ','تمت استعادة النسخة الاحتياطية','Copia restaurada'],
+'Import failed: {0}':['ইমপোর্ট ব্যর্থ: {0}','आयात विफल: {0}','فشل الاستيراد: {0}','Error al importar: {0}'],
+'Not an ExpiryMate backup':['এটি ExpiryMate ব্যাকআপ নয়','यह ExpiryMate बैकअप नहीं है','هذا ليس ملف نسخة احتياطية لـ ExpiryMate','No es una copia de ExpiryMate'],
+'Invalid data in {0}':['{0}-এ ভুল ডেটা','{0} में अमान्य डेटा','بيانات غير صالحة في {0}','Datos no válidos en {0}'],
+'Invalid record in {0}':['{0}-এ ভুল রেকর্ড','{0} में अमान्य रिकॉर्ड','سجل غير صالح في {0}','Registro no válido en {0}'],
+'Restore this backup ({0})?\n\nThis REPLACES all current data on this device. Export a backup first if needed.':['এই ব্যাকআপ রিস্টোর করবেন ({0})?\n\nএটি এই ডিভাইসের বর্তমান সব ডেটা প্রতিস্থাপন করবে। দরকার হলে আগে ব্যাকআপ নিন।','यह बैकअप रीस्टोर करें ({0})?\n\nयह इस डिवाइस का मौजूदा सारा डेटा बदल देगा। ज़रूरत हो तो पहले बैकअप लें।','هل تريد استعادة هذه النسخة ({0})؟\n\nسيؤدي ذلك إلى استبدال كل البيانات الحالية على هذا الجهاز. صدّر نسخة احتياطية أولًا عند الحاجة.','¿Restaurar esta copia ({0})?\n\nSE REEMPLAZARÁN todos los datos actuales de este dispositivo. Exporta una copia antes si es necesario.'],
+'Storage error: {0}':['স্টোরেজ ত্রুটি: {0}','स्टोरेज त्रुटि: {0}','خطأ في التخزين: {0}','Error de almacenamiento: {0}'],
+'Storage is unavailable in this browser (private mode?).':['এই ব্রাউজারে স্টোরেজ পাওয়া যাচ্ছে না (প্রাইভেট মোড?)।','इस ब्राउज़र में स्टोरेज उपलब्ध नहीं है (प्राइवेट मोड?)।','التخزين غير متاح في هذا المتصفح (وضع التصفح الخاص؟).','El almacenamiento no está disponible en este navegador (¿modo privado?).'],
+'Default':['ডিফল্ট','डिफ़ॉल्ट','افتراضية','Predeterminada'],'Custom':['কাস্টম','कस्टम','مخصصة','Personalizada'],
+'tap to view products':['পণ্য দেখতে ট্যাপ করুন','उत्पाद देखने के लिए टैप करें','اضغط لعرض المنتجات','toca para ver productos'],
+'＋ New Category':['＋ নতুন ক্যাটাগরি','＋ नई श्रेणी','＋ فئة جديدة','＋ Nueva categoría'],
+'Default categories cannot be renamed or deleted. A category with products can only be deleted after moving its products to another category.':['ডিফল্ট ক্যাটাগরির নাম বদলানো বা মোছা যায় না। পণ্য থাকা ক্যাটাগরি মুছতে হলে আগে পণ্যগুলো অন্য ক্যাটাগরিতে সরাতে হবে।','डिफ़ॉल्ट श्रेणियों का नाम बदला या हटाया नहीं जा सकता। उत्पादों वाली श्रेणी हटाने से पहले उत्पादों को दूसरी श्रेणी में ले जाना होगा।','لا يمكن إعادة تسمية الفئات الافتراضية أو حذفها. ولا تُحذف فئة تحتوي منتجات إلا بعد نقل منتجاتها إلى فئة أخرى.','Las categorías predeterminadas no se pueden renombrar ni eliminar. Una categoría con productos solo se elimina tras mover sus productos a otra.'],
+'Rename category':['ক্যাটাগরির নাম বদলান','श्रेणी का नाम बदलें','إعادة تسمية الفئة','Renombrar categoría'],'New category':['নতুন ক্যাটাগরি','नई श्रेणी','فئة جديدة','Nueva categoría'],
+'Enter a name':['একটি নাম লিখুন','नाम दर्ज करें','أدخل اسمًا','Introduce un nombre'],
+'This category already exists':['এই ক্যাটাগরি আগে থেকেই আছে','यह श्रेणी पहले से मौजूद है','هذه الفئة موجودة بالفعل','Esta categoría ya existe'],
+'Delete category "{0}"?':['"{0}" ক্যাটাগরি মুছবেন?','श्रेणी "{0}" हटाएँ?','هل تريد حذف الفئة "{0}"؟','¿Eliminar la categoría "{0}"?'],
+'1 product uses "{0}"':['১টি পণ্য "{0}" ব্যবহার করছে','1 उत्पाद "{0}" में है','منتج واحد يستخدم "{0}"','1 producto usa "{0}"'],
+'{0} products use "{1}"':['{0}টি পণ্য "{1}" ব্যবহার করছে','{0} उत्पाद "{1}" में हैं','{0} منتجات تستخدم "{1}"','{0} productos usan "{1}"'],
+'Move them to another category. The category is deleted only together with the move.':['এগুলো অন্য ক্যাটাগরিতে সরান। সরানোর সাথেই ক্যাটাগরি মুছে যাবে।','इन्हें दूसरी श्रेणी में ले जाएँ। श्रेणी केवल इस बदलाव के साथ हटेगी।','انقلها إلى فئة أخرى. تُحذف الفئة مع النقل فقط.','Muévelos a otra categoría. La categoría se elimina solo junto con el traslado.'],
+'Move products & delete':['পণ্য সরান ও মুছুন','उत्पाद ले जाएँ और हटाएँ','نقل المنتجات والحذف','Mover productos y eliminar'],
+'Products moved, category deleted':['পণ্য সরানো হয়েছে, ক্যাটাগরি মুছে গেছে','उत्पाद ले जाए गए, श्रेणी हटाई गई','تم نقل المنتجات وحذف الفئة','Productos movidos, categoría eliminada']
+};
+function tr(k,...a){const e=Object.prototype.hasOwnProperty.call(D,k)?D[k]:null;let s=(LANG!=='en'&&e&&e[LIDX[LANG]])||k;return s.replace(/\{(\d)\}/g,(m,i)=>a[i]??m)}
+const DK={'':['1 day','{0} days'],left:['1 day left','{0} days left'],ago:['1 day ago','{0} days ago']};
+const dn=(n,k)=>tr(DK[k][n==1?0:1],n);
+const catLabel=n=>DEFCATS.includes(n)?tr(n):n;
+const cv=(type,v)=>type=='products'?catLabel(v):tr(v);
+const showVal=(type,k,ty,v)=>ty=='date'?fmt(v):k=='category'?cv(type,v):(k=='unit'||k=='cycle')?tr(v):v;
+const SL={products:'Products',warranty:'Warranty',returns:'Return Deadline',subs:'Subscriptions',docs:'Documents',categories:'Categories'};
+function applyLang(){RTL=LANG==='ar';document.documentElement.lang=LANG;document.documentElement.dir=RTL?'rtl':'ltr'}
+async function setLang(l){if(!LOC[l])return;LANG=l;applyLang();await setSet('lang',l);await route()}
+/* ---------- utils ---------- */
+const $=s=>document.querySelector(s), p2=n=>String(n).padStart(2,'0');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmt(d){if(!d)return '—';const[y,m,dd]=d.split('-');return new Date(+y,m-1,+dd).toLocaleDateString(LOC[LANG],{day:'numeric',month:'short',year:'numeric'})}
+function validDate(s){if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return false;const[y,m,d]=s.split('-').map(Number);const dt=new Date(y,m-1,d);return dt.getFullYear()===y&&dt.getMonth()===m-1&&dt.getDate()===d}
+function toast(m){const t=$('#toast');t.textContent=m;t.className='s';clearTimeout(toast.h);toast.h=setTimeout(()=>t.className='',2600)}
+function status(type,it){const C=T[type],d=it[C.date];if(!d||!validDate(d))return{days:null,cls:'none',label:tr('No date'),txt:tr('No date set')};
+ const n=new Date(),today=new Date(n.getFullYear(),n.getMonth(),n.getDate()),[y,m,dd]=d.split('-').map(Number);
+ const days=Math.round((new Date(y,m-1,dd)-today)/864e5);
+ if(days<0)return{days,cls:'expired',label:tr(C.over),txt:`${tr(C.over)}: ${dn(-days,'ago')}`};
+ if(days<=C.soon)return{days,cls:'soon',label:days===0?tr('Today'):dn(days,''),txt:days===0?tr('Due today'):dn(days,'left')};
+ return{days,cls:'safe',label:tr('Safe'),txt:dn(days,'left')}}
+/* ---------- storage (IndexedDB) ---------- */
+let db;const STORES=['products','warranty','returns','subs','docs','categories'];
+function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open('expirymate',2);
+ r.onupgradeneeded=()=>{const d=r.result;STORES.forEach(s=>{if(!d.objectStoreNames.contains(s))d.createObjectStore(s,{keyPath:'id'})});if(!d.objectStoreNames.contains('settings'))d.createObjectStore('settings',{keyPath:'key'})};
+ r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);r.onblocked=()=>rej(new Error('blocked'))})}
+function tx(s,mode,f){return new Promise((res,rej)=>{const t=db.transaction(s,mode);let q;try{q=f(t.objectStore(s))}catch(e){return rej(e)}
+ t.oncomplete=()=>res(q&&q.result);t.onerror=t.onabort=()=>rej(t.error)})}
+const all=s=>tx(s,'readonly',o=>o.getAll()),put=(s,v)=>tx(s,'readwrite',o=>o.put(v)),del=(s,id)=>tx(s,'readwrite',o=>o.delete(id)),clr=s=>tx(s,'readwrite',o=>o.clear());
+const getSet=async(k,d)=>{const r=(await all('settings')).find(x=>x.key===k);return r?r.value:d};
+const setSet=(k,v)=>put('settings',{key:k,value:v});
+async function safe(fn){try{return await fn()}catch(e){console.error(e);toast(tr('Storage error: {0}',e.message||e));return null}}
+/* ---------- categories ---------- */
+const DEFID=n=>'def-'+n.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+const CATMAP={'fruits & veg':'Fruits & Vegetables','medicine':'Medicines'};
+async function syncCats(){const cs=await all('categories'),names=new Set(cs.map(c=>c.name.toLowerCase()));
+ for(const n of DEFCATS)if(!names.has(n.toLowerCase())){await put('categories',{id:DEFID(n),name:n,builtin:true});names.add(n.toLowerCase())}
+ for(const p of await all('products')){let n=(p.category||'').trim();const m=CATMAP[n.toLowerCase()];
+  if(m&&m!==p.category){p.category=m;await put('products',p);n=m}
+  if(n&&!names.has(n.toLowerCase())){await put('categories',{id:uid(),name:n,builtin:false});names.add(n.toLowerCase())}}}
+async function getCats(){const o=n=>DEFCATS.indexOf(n);return(await all('categories')).sort((a,b)=>{const x=a.builtin?o(a.name):999,y=b.builtin?o(b.name):999;return x-y||a.name.localeCompare(b.name)})}
+function catTx(fn){return new Promise((res,rej)=>{const t=db.transaction(['categories','products'],'readwrite');fn(t.objectStore('categories'),t.objectStore('products'));t.oncomplete=res;t.onerror=t.onabort=()=>rej(t.error)})}
+function moveProducts(ps,from,to){const rq=ps.getAll();rq.onsuccess=()=>rq.result.filter(p=>p.category===from).forEach(p=>{p.category=to;p.updated=Date.now();ps.put(p)})}
+const renameCat=(c,n)=>catTx((cs,ps)=>{cs.put({...c,name:n});moveProducts(ps,c.name,n)});
+const moveDel=(c,to)=>catTx((cs,ps)=>{moveProducts(ps,c.name,to);cs.delete(c.id)});
+async function vCats(){head('Categories');const cs=await getCats(),n={};(await all('products')).forEach(p=>n[p.category]=(n[p.category]||0)+1);
+ $('#app').innerHTML='<button class="btn" onclick="catEdit()">'+tr('＋ New Category')+'</button><div style="height:10px"></div>'+cs.map(c=>`<div class="card item" data-id="${c.id}"><div class="m"><b>${esc(c.builtin?catLabel(c.name):c.name)}</b><small>${tr(c.builtin?'Default':'Custom')} • ${tr('tap to view products')}</small></div><span class="badge none">${n[c.name]||0}</span>${c.builtin?'':`<button class="chip" data-ed="${c.id}" aria-label="${tr('Edit')}">✎</button><button class="chip" data-dl="${c.id}" aria-label="${tr('Delete')}">🗑</button>`}</div>`).join('')+'<p class="note">'+tr('Default categories cannot be renamed or deleted. A category with products can only be deleted after moving its products to another category.')+'</p>';
+ document.querySelectorAll('[data-id]').forEach(e=>e.onclick=()=>{const c=cs.find(x=>x.id===e.dataset.id);catf=c.name;flt='all';q='';go('#/list/products')});
+ document.querySelectorAll('[data-ed]').forEach(e=>e.onclick=ev=>{ev.stopPropagation();catEdit(e.dataset.ed)});
+ document.querySelectorAll('[data-dl]').forEach(e=>e.onclick=ev=>{ev.stopPropagation();catDel(e.dataset.dl)})}
+async function catEdit(id){const cs=await all('categories'),c=id&&cs.find(x=>x.id===id);
+ modal(`<label>${tr(c?'Rename category':'New category')}</label><input id="cn" maxlength="30" value="${esc(c?c.name:'')}"><div class="err" id="cne"></div><button class="btn g" id="cs">${tr('Save')}</button><button class="btn gr" onclick="modal()">${tr('Cancel')}</button>`);
+ $('#cs').onclick=()=>safe(async()=>{const n=$('#cn').value.trim().replace(/\s+/g,' ');
+  if(!n){$('#cne').textContent=tr('Enter a name');return}
+  if(cs.some(x=>x.id!==(c&&c.id)&&x.name.toLowerCase()===n.toLowerCase())){$('#cne').textContent=tr('This category already exists');return}
+  if(c){if(c.name!==n)await renameCat(c,n)}else await put('categories',{id:uid(),name:n,builtin:false});
+  modal();toast(tr('Saved'));route()})}
+async function catDel(id){const cs=await getCats(),c=cs.find(x=>x.id===id);if(!c||c.builtin)return;const ps=(await all('products')).filter(p=>p.category===c.name);
+ if(!ps.length){if(!confirm(tr('Delete category "{0}"?',c.name)))return;await safe(()=>del('categories',id));toast(tr('Deleted'));return route()}
+ modal(`<b>${ps.length==1?tr('1 product uses "{0}"',esc(c.name)):tr('{0} products use "{1}"',ps.length,esc(c.name))}</b><p class="note">${tr('Move them to another category. The category is deleted only together with the move.')}</p><select id="mv">${cs.filter(x=>x.id!==id).map(o=>`<option value="${esc(o.name)}">${esc(o.builtin?catLabel(o.name):o.name)}</option>`).join('')}</select><button class="btn r" id="mvb">${tr('Move products & delete')}</button><button class="btn gr" onclick="modal()">${tr('Cancel')}</button>`);
+ $('#mvb').onclick=()=>safe(async()=>{await moveDel(c,$('#mv').value);modal();toast(tr('Products moved, category deleted'));route()})}
+/* ---------- images ---------- */
+function shrink(file,max=900){return new Promise((res,rej)=>{const u=URL.createObjectURL(file),i=new Image();
+ i.onload=()=>{const k=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=Math.round(i.width*k);c.height=Math.round(i.height*k);
+  c.getContext('2d').drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',.8))};
+ i.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('bad image'))};i.src=u})}
+function pick(capture){return new Promise(res=>{const i=document.createElement('input');i.type='file';i.accept='image/*';if(capture)i.capture='environment';
+ i.onchange=()=>{const f=i.files[0];if(!f)return res(null);shrink(f).then(res,()=>{toast(tr('Could not read that image'));res(null)})};i.click()})}
+const thumb=(it,C)=>it.photo?`<img class="th" src="${it.photo}" alt="">`:`<div class="th">${C.ico}</div>`;
+/* ---------- shell / routing ---------- */
+let pending=null,ph=null,stream=null,loopOn=false;
+function head(title,{back=1,acts=''}={}){$('#top').innerHTML=`<header>${back?`<button onclick="history.back()" aria-label="${tr('Back')}">${RTL?'→':'←'}</button>`:''}<h1>${esc(tr(title))}</h1>${acts}</header>`}
+function stopCam(){loopOn=false;if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
+function go(h){location.hash=h}
+async function route(){stopCam();const[,pg,a,b]=location.hash.split('/');const V={home:vHome,list:vList,form:vForm,detail:vDetail,barcode:vBarcode,ocr:vOcr,alerts:vAlerts,settings:vSettings,categories:vCats};
+ await safe(()=>(V[pg]||vHome)(a,b));window.scrollTo(0,0)}
+window.addEventListener('hashchange',route);
+/* ---------- home ---------- */
+async function vHome(){head('ExpiryMate',{back:0,acts:`<button onclick="go('#/alerts')" aria-label="${tr('Notifications')}">🔔</button><button onclick="go('#/settings')" aria-label="${tr('Settings')}">⚙</button>`});
+ const n={};for(const k in T)n[k]=(await all(T[k].s)).length;const nc=(await all('categories')).length;
+ const tile=(h,c,i,l,cnt)=>`<button class="tile" style="background:${c}" onclick="go('${h}')"><span>${i}</span>${tr(l)}${cnt==null?'':`<em>${cnt}</em>`}</button>`;
+ $('#app').innerHTML=`<div class="logo"><b>ExpiryMate</b><small>${tr('Track • Scan • Capture • Get Reminders')}</small></div>`+
+  tile('#/barcode','#1e6df2','▥','Scan Barcode')+tile('#/ocr','#1fa347','📷','Scan with Camera')+
+  Object.keys(T).map(k=>tile('#/list/'+k,T[k].col,T[k].ico,T[k].t,n[k])).join('')+tile('#/categories','#d81b83','🏷','Categories',nc)}
+/* ---------- list ---------- */
+let flt='all',q='',catf='all';
+async function vList(type){const C=T[type];if(!C)return go('#/home');head(C.t,{acts:''});
+ const items=(await all(C.s)).map(it=>({it,s:status(type,it)}));const cats=type=='products'?await getCats():[];if(catf!=='all'&&!cats.some(c=>c.name===catf))catf='all';
+ const cnt={all:items.length,safe:items.filter(x=>x.s.cls=='safe').length,soon:items.filter(x=>x.s.cls=='soon').length,expired:items.filter(x=>x.s.cls=='expired').length};
+ $('#app').innerHTML=`<input id="q" type="search" placeholder="${tr('Search…')}" value="${esc(q)}"><div class="chips" style="margin-top:10px">${[['all','All'],['safe','Safe'],['soon','Expiring Soon'],['expired',C.over]].map(([k,l])=>`<button class="chip ${flt==k?'on':''}" data-f="${k}">${tr(l)} (${cnt[k]})</button>`).join('')}</div>${type=='products'?`<div class="chips"><button class="chip ${catf=='all'?'on':''}" data-c="all">${tr('All categories')} (${items.length})</button>${cats.map(c=>`<button class="chip ${catf==c.name?'on':''}" data-c="${esc(c.name)}">${esc(catLabel(c.name))} (${items.filter(x=>x.it.category===c.name).length})</button>`).join('')}</div>`:''}<div id="ls"></div><button class="fab" onclick="go('#/form/${type}/new')" aria-label="${tr('Add')}">＋</button>`;
+ const draw=()=>{const t=q.toLowerCase();let r=items.filter(x=>(flt=='all'||x.s.cls==flt)&&(catf=='all'||x.it.category===catf)&&(!t||JSON.stringify(x.it).replace(/data:image[^"]*/g,'').toLowerCase().includes(t)));
+  r.sort((a,b)=>(a.it[C.date]||'9999').localeCompare(b.it[C.date]||'9999'));
+  $('#ls').innerHTML=r.length?r.map(({it,s})=>`<div class="card item" onclick="go('#/detail/${type}/${it.id}')">${thumb(it,C)}<div class="m"><b>${esc(it.name)}</b><small>${esc(it.qty?it.qty+' '+tr(it.unit||''):it.brand||it.provider||it.seller||cv(type,it.category||''))}</small><br><small>${fmt(it[C.date])}</small></div><span class="badge ${s.cls}">${esc(s.label)}</span></div>`).join(''):`<div class="empty">${items.length?tr('No matching items.'):tr('Nothing here yet. Tap ＋ to add your first {0}.',tr(C.one).toLowerCase())}</div>`};
+ draw();$('#q').oninput=e=>{q=e.target.value;draw()};
+ document.querySelectorAll('.chip[data-f]').forEach(c=>c.onclick=()=>{flt=c.dataset.f;document.querySelectorAll('.chip[data-f]').forEach(x=>x.classList.toggle('on',x==c));draw()});
+ document.querySelectorAll('.chip[data-c]').forEach(c=>c.onclick=()=>{catf=c.dataset.c;document.querySelectorAll('.chip[data-c]').forEach(x=>x.classList.toggle('on',x==c));draw()})}
+/* ---------- form ---------- */
+async function vForm(type,id){const C=T[type];if(!C)return go('#/home');
+ const old=id&&id!=='new'?(await all(C.s)).find(x=>x.id===id):null;if(id&&id!=='new'&&!old){toast(tr('Item not found'));return go('#/list/'+type)}
+ const v=old||pending||{};pending=null;ph=v.photo||null;if(!old&&type=='products'&&!v.qty)v.qty=1;
+ head(tr(old?'Edit {0}':'Add {0}',tr(C.one)));const cats=type=='products'?(await getCats()).map(c=>c.name):[];if(type=='products'&&v.category&&!cats.includes(v.category))cats.push(v.category);
+ const fld=([k,l,t,r,o])=>{if(type=='products'&&k=='category')o=cats;const val=esc(v[k]??'');let inp=t=='select'?`<select id="f_${k}">${o.map(x=>`<option value="${esc(x)}" ${v[k]==x?'selected':''}>${esc(type=='products'&&k=='category'?catLabel(x):tr(x))}</option>`).join('')}</select>`:t=='area'?`<textarea id="f_${k}" rows="3">${val}</textarea>`:`<input id="f_${k}" type="${t}" ${t=='number'?'min="0" step="any" inputmode="decimal"':''} value="${val}">`;
+  return `<label>${tr(l)}${r?' *':''}</label>${inp}<div class="err" id="e_${k}"></div>`};
+ $('#app').innerHTML=C.f.map(fld).join('')+(C.pl?`<label>${tr(C.pl)} (${tr('optional')})</label><div id="pv"></div><div class="row"><button class="btn gr" onclick="setPh(true)">${tr('📷 Camera')}</button><button class="btn gr" onclick="setPh(false)">${tr('🖼 Gallery')}</button><button class="btn r" onclick="ph=null;drawPh()">✕</button></div>`:'')+
+  `<button class="btn g" id="sv">${esc(tr('Save {0}',tr(C.one)))}</button><button class="btn gr" onclick="history.back()">${tr('Cancel')}</button>`;
+ drawPh();$('#sv').onclick=()=>safe(()=>save(type,old))}
+function drawPh(){const e=$('#pv');if(e)e.innerHTML=ph?`<img class="pv" src="${ph}" alt="photo">`:''}
+async function setPh(cam){const r=await pick(cam);if(r){ph=r;drawPh()}}
+async function save(type,old){const C=T[type],o={};let bad=false;
+ for(const[k,l,t,r]of C.f){const e=$('#e_'+k);e.textContent='';let x=$('#f_'+k).value.trim();
+  if(r&&!x){e.textContent=tr('Required');bad=true}
+  else if(t=='date'&&x&&!validDate(x)){e.textContent=tr('Invalid date');bad=true}
+  else if(t=='number'&&x!==''&&(isNaN(+x)||+x<0)){e.textContent=tr('Enter a valid number');bad=true}
+  o[k]=t=='number'&&x!==''?+x:x}
+ if(!bad&&o.mfg&&o.expiry&&o.expiry<o.mfg){$('#e_expiry').textContent=tr('Expiry is before manufacturing date');bad=true}
+ if(bad){toast(tr('Please fix the highlighted fields'));return}
+ if(type=='products'){const dup=(await all('products')).find(x=>x.id!==(old&&old.id)&&((o.barcode&&x.barcode===o.barcode&&x.expiry===o.expiry)||(x.name.toLowerCase()===o.name.toLowerCase()&&x.expiry===o.expiry)));
+  if(dup&&!confirm(tr('A similar product ("{0}") with the same expiry already exists. Save anyway?',dup.name)))return}
+ const rec={...(old||{}),...o,id:old?old.id:uid(),photo:ph,created:old?old.created:Date.now(),updated:Date.now()};
+ await put(C.s,rec);toast(tr('Saved'));history.replaceState(null,'','#/list/'+type);route()}
+/* ---------- detail ---------- */
+async function vDetail(type,id){const C=T[type];if(!C)return go('#/home');const it=(await all(C.s)).find(x=>x.id===id);if(!it){toast(tr('Item not found'));return go('#/list/'+type)}
+ const s=status(type,it);head(tr('{0} Details',tr(C.one)),{acts:`<button onclick="go('#/form/${type}/${id}')" aria-label="${tr('Edit')}">✎</button><button onclick="rm('${type}','${id}')" aria-label="${tr('Delete')}">🗑</button>`});
+ const rows=C.f.filter(f=>f[0]!='name'&&it[f[0]]!==''&&it[f[0]]!=null).map(([k,l,t])=>`<div class="kv"><span>${tr(l.replace(' (optional)',''))}</span><span>${esc(showVal(type,k,t,it[k]))}</span></div>`).join('');
+ $('#app').innerHTML=`<div class="item card">${thumb(it,C)}<div class="m"><b style="font-size:20px">${esc(it.name)}</b><small>${tr('Added {0}',new Date(it.created||Date.now()).toLocaleDateString(LOC[LANG]))}</small></div></div>
+ <div class="card"><div class="item"><div class="m"><b>${fmt(it[C.date])}</b><small>${esc(s.txt)}</small></div><span class="badge ${s.cls}">${esc(s.label)}</span></div></div><div class="card">${rows||'<span class="note">'+tr('No more details.')+'</span>'}</div>
+ <button class="btn g" onclick="upDate('${type}','${id}')">${tr(type=='subs'?'Mark Renewed (advance date)':'Update Date')}</button>
+ ${C.pl?`<button class="btn" onclick="newPh('${type}','${id}')">${tr('📷 Take New Photo')}</button>${it.photo?`<button class="btn p" onclick="fullImg('${type}','${id}')">${tr('View Full Image')}</button>`:''}`:''}
+ <button class="btn r" onclick="rm('${type}','${id}')">${tr('Delete')}</button>`}
+async function rm(type,id){if(!confirm(tr('Delete this item permanently?')))return;await safe(()=>del(T[type].s,id));toast(tr('Deleted'));history.replaceState(null,'','#/list/'+type);route()}
+async function newPh(type,id){const r=await pick(true);if(!r)return;await safe(async()=>{const it=(await all(T[type].s)).find(x=>x.id===id);it.photo=r;it.updated=Date.now();await put(T[type].s,it);toast(tr('Photo updated'));route()})}
+async function fullImg(type,id){const it=(await all(T[type].s)).find(x=>x.id===id);modal(`<img src="${it.photo}" style="width:100%;border-radius:8px"><button class="btn gr" onclick="modal()">${tr('Close')}</button>`)}
+function modal(h){const m=$('#modal');if(!h){m.className='';return}$('#mbox').innerHTML=h;m.className='s'}
+async function upDate(type,id){const C=T[type],it=(await all(C.s)).find(x=>x.id===id);
+ if(type=='subs'){const d=new Date(it.renewal+'T00:00:00'),add={Monthly:1,Quarterly:3,Yearly:12}[it.cycle]||1;d.setMonth(d.getMonth()+add);it.renewal=`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;it.updated=Date.now();await put('subs',it);toast(tr('Renewal moved to {0}',fmt(it.renewal)));return route()}
+ modal(`<label>${esc(tr('New {0}',tr(C.f.find(f=>f[0]==C.date)[1])))}</label><input type="date" id="nd" value="${esc(it[C.date]||'')}"><div class="err" id="nde"></div><button class="btn g" id="ndb">${tr('Save')}</button><button class="btn gr" onclick="modal()">${tr('Cancel')}</button>`);
+ $('#ndb').onclick=()=>safe(async()=>{const v=$('#nd').value;if(!validDate(v)){$('#nde').textContent=tr('Enter a valid date');return}it[C.date]=v;it.updated=Date.now();await put(C.s,it);modal();toast(tr('Date updated'));route()})}
+/* ---------- barcode ---------- */
+async function vBarcode(){head('Scan Barcode');const hasBD='BarcodeDetector' in window;
+ $('#app').innerHTML=`${hasBD?'<video id="vid" playsinline muted></video><p class="note" id="bs">'+tr('Starting camera…')+'</p>':'<p class="note">'+tr('Live barcode detection is not supported in this browser (works in recent Android Chrome). Enter the barcode manually below.')+'</p>'}
+ <div id="res"></div><label>${tr('Enter barcode manually')}</label><input id="bc" inputmode="numeric" placeholder="e.g. 8901030690031"><button class="btn" id="bgo">${tr('Look Up')}</button><button class="btn gr" onclick="pending={};go('#/form/products/new')">${tr('Add Product Manually')}</button>
+ <p class="note">${tr('Product names come from the free Open Food Facts database (food items only, no guarantee of coverage). If nothing is found, add the product manually.')}</p>`;
+ $('#bgo').onclick=()=>{const c=$('#bc').value.replace(/\s/g,'');if(!/^\d{6,14}$/.test(c))return toast(tr('Enter 6–14 digits'));found(c)};
+ if(!hasBD)return;
+ try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});const v=$('#vid');v.srcObject=stream;await v.play();$('#bs').textContent=tr('Point the camera at a barcode.');
+  const det=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','qr_code','code_128']});loopOn=true;
+  const tick=async()=>{if(!loopOn)return;try{const r=await det.detect(v);if(r.length){loopOn=false;stopCam();return found(r[0].rawValue)}}catch(e){}setTimeout(tick,300)};tick()}
+ catch(e){$('#bs').textContent=e.name=='NotAllowedError'?tr('Camera permission denied. Allow camera in browser settings, or enter the barcode manually.'):tr('Camera unavailable: {0}',e.message)}}
+async function found(code){stopCam();const r=$('#res');r.innerHTML=`<div class="card"><b>${tr('Barcode Detected')}</b><br>${esc(code)}<br><span class="note">${tr('Looking up product…')}</span></div>`;
+ let name='',qty='';try{const c=new AbortController();setTimeout(()=>c.abort(),8000);const j=await(await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,quantity`,{signal:c.signal})).json();if(j.status===1&&j.product&&j.product.product_name){name=j.product.product_name;qty=j.product.quantity||''}}catch(e){}
+ const pre={barcode:code,name,notes:qty?tr('Pack size: {0}',qty):''};window._pre=pre;
+ r.innerHTML=`<div class="card"><b>${tr('Barcode Detected')}</b><br>${esc(code)}<br>${name?`<b>${esc(name)}</b> ${esc(qty)}`:`<span class="note">${tr('Product not found online. You can enter details manually.')}</span>`}</div><button class="btn" onclick="pending=window._pre;go('#/form/products/new')">${tr(name?'Use This Product':'Enter Product Details')}</button>`}
+/* ---------- OCR ---------- */
+function parseDates(text){const out=[],re=/(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})|(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/g;let m;
+ while((m=re.exec(text))){let y,mo,d;if(m[1]){y=+m[1];mo=+m[2];d=+m[3]}else{d=+m[4];mo=+m[5];y=+m[6];if(y<100)y+=2000}
+  const dt=new Date(y,mo-1,d);if(dt.getFullYear()!==y||dt.getMonth()!==mo-1||dt.getDate()!==d)continue;
+  const pre=text.slice(Math.max(0,m.index-14),m.index).toUpperCase();
+  out.push({iso:`${y}-${p2(mo)}-${p2(d)}`,kind:/EXP|USE BY|BEST/.test(pre)?'EXP':/MFG|MFD|PKD|MANUF|PACK/.test(pre)?'MFG':'?'})}
+ return out}
+function loadTess(){return new Promise((res,rej)=>{if(window.Tesseract)return res();const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';s.onload=res;s.onerror=()=>rej(new Error(tr('OCR library could not load (internet needed the first time)')));document.head.appendChild(s)})}
+async function vOcr(){head('Scan with Camera');
+ $('#app').innerHTML=`<p class="note">${tr('Take a clear, well-lit photo of the printed MFG / EXP dates. Dates are read as DD/MM/YYYY — please always check them.')}</p><div class="row"><button class="btn g" onclick="ocrGo(true)">${tr('📷 Camera')}</button><button class="btn" onclick="ocrGo(false)">${tr('🖼 Gallery')}</button></div><div id="oc"></div>`}
+async function ocrGo(cam){const img=await pick(cam);if(!img)return;ph=img;const o=$('#oc');o.innerHTML=`<img class="pv" src="${img}" alt=""><p class="note" id="os">${tr('Loading text reader…')}</p>`;
+ try{await loadTess();const r=await Tesseract.recognize(img,'eng',{logger:m=>{if(m.status=='recognizing text')$('#os').textContent=tr('Reading text… {0}%',Math.round(m.progress*100))}});
+  const ds=parseDates(r.data.text),ex=ds.find(d=>d.kind=='EXP')||ds.find(d=>d.kind=='?'),mf=ds.find(d=>d.kind=='MFG');
+  o.innerHTML=`<img class="pv" src="${img}" alt=""><div class="card"><b>${tr(ds.length?'Detected dates — please confirm':'No date detected')}</b><p class="note">${ds.map(d=>`${d.kind}: ${fmt(d.iso)}`).join(' • ')||tr('Enter the dates manually below.')}</p>
+  <label>${tr('Manufacturing Date')}</label><input type="date" id="om" value="${mf?mf.iso:''}"><label>${tr('Expiry Date')}</label><input type="date" id="oe" value="${ex&&!(mf&&ex===mf)?ex.iso:''}"><div class="err" id="oer"></div></div>
+  <button class="btn" id="ou">${tr('Use This Date')}</button>`;
+  $('#ou').onclick=()=>{const e=$('#oe').value,m=$('#om').value;if(e&&!validDate(e)||m&&!validDate(m)||!e&&!m){$('#oer').textContent=tr('Enter at least one valid date');return}pending={expiry:e,mfg:m,photo:img};go('#/form/products/new')}}
+ catch(e){o.innerHTML=`<img class="pv" src="${img}" alt=""><p class="err">${esc(e.message)}</p><button class="btn" onclick="pending={photo:ph};go('#/form/products/new')">${tr('Continue and enter dates manually')}</button>`}}
+/* ---------- notifications ---------- */
+async function buildAlerts(){const out=[];for(const type in T){const C=T[type];for(const it of await all(C.s)){const s=status(type,it);if(s.days==null||s.days>30)continue;
+ const b=s.days<0?'exp':THRESH.find(t=>s.days<=t&&(THRESH[THRESH.indexOf(t)+1]===undefined||s.days>THRESH[THRESH.indexOf(t)+1]));
+ out.push({key:`${type}:${it.id}:${C.date}:${it[C.date]}:${b}`,type,id:it.id,days:s.days,title:`${tr(C.t)}: ${s.days<0?tr(C.over):s.days===0?tr('Due today'):dn(s.days,'left')}`,body:`${it.name} — ${fmt(it[C.date])}`})}}
+ return out.sort((a,b)=>a.days-b.days)}
+async function runAlerts(){if(!('Notification' in window)||Notification.permission!=='granted'||!(await getSet('notif',true)))return;
+ const done=new Set(await getSet('notified',[])),list=await buildAlerts(),reg=await navigator.serviceWorker?.getRegistration();let n=0;
+ for(const a of list){if(done.has(a.key))continue;done.add(a.key);try{reg?await reg.showNotification(a.title,{body:a.body,icon:'icon-192.png',tag:a.key}):new Notification(a.title,{body:a.body});n++}catch(e){}}
+ await setSet('notified',[...done].slice(-500))}
+async function vAlerts(){head('Notifications',{acts:'<button onclick="go(\'#/settings\')">⚙</button>'});const l=await buildAlerts();
+ $('#app').innerHTML=l.length?l.map(a=>`<div class="card item" onclick="go('#/detail/${a.type}/${a.id}')"><div class="th">${a.days<0?'⏰':'🔔'}</div><div class="m"><b>${esc(a.title)}</b><small>${esc(a.body)}</small></div></div>`).join(''):'<div class="empty">'+tr('No alerts. Items due within 30 days or overdue appear here.')+'</div>'}
+/* ---------- settings / backup ---------- */
+let dip=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e});
+async function vSettings(){head('Settings');const perm='Notification' in window?Notification.permission:'unsupported';const on=await getSet('notif',true),dk=await getSet('dark',false);
+ $('#app').innerHTML=`<div class="card"><b>${tr('Language')}</b><select id="lg" style="margin-top:8px">${LANGS.map(([c,n])=>`<option value="${c}" ${c==LANG?'selected':''}>${n}</option>`).join('')}</select></div>
+ <div class="card"><b>${tr('Appearance')}</b><label><input type="checkbox" id="dk" style="width:auto" ${dk?'checked':''}> ${tr('Dark mode')}</label></div>
+ <div class="card"><b>${tr('Reminders')}</b><p class="note">${tr('Alerts at 30, 7, 3 and 1 days before, on the day, and when overdue. Permission: {0}.','<b>'+tr(perm)+'</b>')}</p>
+ <label><input type="checkbox" id="nt" style="width:auto" ${on?'checked':''}> ${tr('Enable notifications')}</label>${perm=='default'?`<button class="btn" id="np">${tr('Allow Notifications')}</button>`:''}
+ <p class="note">${tr('Alerts are checked when you open the app. Android browsers may not deliver them while the app is closed; reliable background alerts need a push server. Check the Notifications screen regularly.')}</p></div>
+ <div class="card"><b>${tr('Categories')}</b><button class="btn" onclick="go('#/categories')">${tr('Manage Categories')}</button></div>
+ <div class="card"><b>${tr('Backup & Restore')}</b><button class="btn" id="ex">${tr('Export Backup (JSON)')}</button><button class="btn p" id="im">${tr('Import Backup')}</button></div>
+ <div class="card"><b>${tr('Data')}</b><p class="note" id="st">…</p><p class="note">${tr('Your data is stored only in this browser on this device and is not synced. Clearing browser data can erase it — export backups regularly.')}</p><button class="btn r" id="ca">${tr('Delete All Data')}</button></div>
+ ${dip?`<button class="btn g" id="ins">${tr('Install App')}</button>`:''}<p class="note" style="text-align:center">ExpiryMate 2.0</p>`;
+ $('#lg').onchange=e=>safe(()=>setLang(e.target.value));
+ $('#dk').onchange=e=>{document.body.classList.toggle('dark',e.target.checked);setSet('dark',e.target.checked)};
+ $('#nt').onchange=e=>setSet('notif',e.target.checked);
+ if($('#np'))$('#np').onclick=async()=>{await Notification.requestPermission();vSettings();runAlerts()};
+ $('#ex').onclick=()=>safe(exportData);$('#im').onclick=importData;
+ $('#ca').onclick=()=>safe(async()=>{if(!confirm(tr('Delete ALL data on this device? This cannot be undone.')))return;if(!confirm(tr('Really delete everything? Export a backup first if unsure.')))return;for(const s of STORES)await clr(s);await syncCats();toast(tr('All data deleted'));vSettings()});
+ if($('#ins'))$('#ins').onclick=async()=>{dip.prompt();await dip.userChoice;dip=null;vSettings()};
+ let t='';for(const s of STORES)t+=`${tr(SL[s])}: ${(await all(s)).length}  `;if(navigator.storage&&navigator.storage.estimate){const e=await navigator.storage.estimate();t+='\n'+tr('Used ≈ {0} MB',(e.usage/1048576).toFixed(1))}$('#st').style.whiteSpace='pre-line';$('#st').textContent=t;
+ if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}
+async function exportData(){const data={};for(const s of STORES)data[s]=await all(s);const blob=new Blob([JSON.stringify({app:'ExpiryMate',version:3,exported:new Date().toISOString(),data})],{type:'application/json'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`expirymate-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);toast(tr('Backup exported'))}
+function importData(){const i=document.createElement('input');i.type='file';i.accept='application/json,.json';i.onchange=async()=>{const f=i.files[0];if(!f)return;
+ try{const j=JSON.parse(await f.text());if(j.app!=='ExpiryMate'||!j.data)throw new Error(tr('Not an ExpiryMate backup'));
+  for(const s of STORES){if(j.data[s]===undefined)continue;if(!Array.isArray(j.data[s]))throw new Error(tr('Invalid data in {0}',s));
+   for(const r of j.data[s])if(!r||typeof r.id!=='string'||typeof r.name!=='string')throw new Error(tr('Invalid record in {0}',s))}
+  const c=STORES.map(s=>`${tr(SL[s])}: ${(j.data[s]||[]).length}`).join(', ');
+  if(!confirm(tr('Restore this backup ({0})?\n\nThis REPLACES all current data on this device. Export a backup first if needed.',c)))return;
+  for(const s of STORES){await clr(s);for(const r of j.data[s]||[])await put(s,r)}await syncCats();toast(tr('Backup restored'));vSettings()}
+ catch(e){toast(tr('Import failed: {0}',e.message))}};i.click()}
+/* ---------- start ---------- */
+(async()=>{try{db=await openDB();await syncCats();LANG=await getSet('lang','en');if(!LOC[LANG])LANG='en';applyLang()}catch(e){$('#app').innerHTML='<div class="empty">'+tr('Storage is unavailable in this browser (private mode?).')+'<br>'+esc(e.message)+'</div>';return}
+ if(await getSet('dark',false))document.body.classList.add('dark');
+ if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(e=>console.warn('SW failed',e));
+ await route();runAlerts()})();
+</script>
+</body>
+</html>
